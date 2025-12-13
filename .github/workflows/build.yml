@@ -67,144 +67,141 @@ jobs:
           name: dependency-check-report
           path: target/dependency-check-report.html
 
-  dast-baseline:
-    name: DAST Baseline (OWASP ZAP)
-    needs: build
+  zap_dast_baseline:
+    name: ZAP DAST Baseline
     runs-on: ubuntu-latest
+    needs: build
+    continue-on-error: true
+
     steps:
-      - name: Checkout
+      - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Make workspace writable for ZAP container
-        run: chmod -R a+w "$GITHUB_WORKSPACE"
+      - name: Fetch packaged JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: jar-artifacts
+          path: ./runtime
 
-      - name: Setup Java 17
+      - name: Create rules file if missing
+        run: |
+          test -f zap-rules.tsv || : > zap-rules.tsv
+          cp zap-rules.tsv ./zap-rules.tsv
+
+      - name: Install JDK 17 (run app)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Download jar artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: jar-artifacts
-          path: target
-
-      - name: Prepare ZAP rules file
-        run: touch zap-rules.tsv
-
-      - name: Start application in background
+      - name: Start application (background)
         run: |
-          java -jar target/*.jar &
+          ls -la ./runtime
+          JAR_PATH="$(ls -1 ./runtime/*.jar 2>/dev/null | grep -v '\.original$' | head -n 1)"
+          if [ -z "$JAR_PATH" ]; then
+            echo "ERROR: JAR not found in ./runtime"
+            exit 1
+          fi
+          echo "Using JAR: $JAR_PATH"
+          java -jar "$JAR_PATH" &
+          echo $! > .app.pid
           sleep 30
-
-      - name: Wait for app (best effort)
-        run: |
-          for i in {1..10}; do
-            if curl -fsS http://localhost:8080/ >/dev/null 2>&1; then
-              echo "App is up"
-              exit 0
-            fi
-            sleep 3
-          done
-          echo "App did not become ready, continuing (DAST must not fail pipeline)"
 
       - name: ZAP baseline scan
-        uses: zaproxy/action-baseline@v0.9.0
-        continue-on-error: true
+        uses: zaproxy/action-baseline@v0.15.0
         with:
-          target: http://localhost:8080
-          rules_file_name: zap-rules.tsv
-          # action сам создаёт report_html.html; мы делаем отдельный "человеческий" отчёт своим шагом ниже
-          cmd_options: ""
+          target: "http://localhost:8080/"
+          rules_file_name: "zap-rules.tsv"
+          cmd_options: "-a"
+          allow_issue_writing: false
+          fail_action: false
+          artifact_name: "zap-baseline-internal"
 
-      - name: Ensure baseline report exists (fallback)
+      - name: Stop application
         if: always()
         run: |
-          if [ -f report_html.html ]; then
-            cp report_html.html zap-baseline-report.html
-          else
-            cat > zap-baseline-report.html <<'EOF'
-            <html><body>
-            <h2>OWASP ZAP Baseline Report</h2>
-            <p>ZAP did not generate the report (scan failed or target was unreachable).</p>
-            <p>Please check workflow logs for details.</p>
-            </body></html>
-            EOF
+          if [ -f .app.pid ]; then
+            kill "$(cat .app.pid)" || true
           fi
 
-      - name: Upload baseline report
-        uses: actions/upload-artifact@v4
+      - name: Upload baseline reports
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: zap-baseline-report
-          path: zap-baseline-report.html
+          path: |
+            report_html.html
+            report_md.md
+            report_json.json
+            zap-rules.tsv
+          if-no-files-found: ignore
 
-  dast-api:
-    name: DAST API Scan (OWASP ZAP)
-    needs: build
+  zap_dast_api:
+    name: ZAP DAST API Scan
     runs-on: ubuntu-latest
+    needs: build
+    continue-on-error: true
+
     steps:
-      - name: Checkout
+      - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Make workspace writable for ZAP container
-        run: chmod -R a+w "$GITHUB_WORKSPACE"
+      - name: Fetch packaged JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: jar-artifacts
+          path: ./runtime
 
-      - name: Setup Java 17
+      - name: Create rules file if missing
+        run: |
+          test -f zap-rules.tsv || : > zap-rules.tsv
+          cp zap-rules.tsv ./zap-rules.tsv
+
+      - name: Install JDK 17 (run app)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Download jar artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: jar-artifacts
-          path: target
-
-      - name: Start application in background
+      - name: Start application (background)
         run: |
-          java -jar target/*.jar &
+          ls -la ./runtime
+          JAR_PATH="$(ls -1 ./runtime/*.jar 2>/dev/null | grep -v '\.original$' | head -n 1)"
+          if [ -z "$JAR_PATH" ]; then
+            echo "ERROR: JAR not found in ./runtime"
+            exit 1
+          fi
+          echo "Using JAR: $JAR_PATH"
+          java -jar "$JAR_PATH" &
+          echo $! > .app.pid
           sleep 30
 
-      - name: Wait for OpenAPI endpoint (best effort)
-        run: |
-          for i in {1..10}; do
-            if curl -fsS http://localhost:8080/v3/api-docs >/dev/null 2>&1; then
-              echo "OpenAPI is up"
-              exit 0
-            fi
-            sleep 3
-          done
-          echo "OpenAPI did not become ready, continuing (DAST must not fail pipeline)"
-
-      - name: ZAP API scan
+      - name: ZAP API scan (OpenAPI)
         uses: zaproxy/action-api-scan@v0.10.0
-        continue-on-error: true
         with:
-          target: http://localhost:8080/v3/api-docs
-          format: openapi
-          cmd_options: ""
+          target: "http://localhost:8080/v3/api-docs"
+          format: "openapi"
+          rules_file_name: "zap-rules.tsv"
+          cmd_options: "-a"
+          allow_issue_writing: false
+          fail_action: false
+          artifact_name: "zap-api-internal"
 
-      - name: Ensure API report exists (fallback)
+      - name: Stop application
         if: always()
         run: |
-          if [ -f report_html.html ]; then
-            cp report_html.html zap-api-report.html
-          else
-            cat > zap-api-report.html <<'EOF'
-            <html><body>
-            <h2>OWASP ZAP API Report</h2>
-            <p>ZAP did not generate the report (scan failed or OpenAPI was unreachable).</p>
-            <p>Please check workflow logs for details.</p>
-            </body></html>
-            EOF
+          if [ -f .app.pid ]; then
+            kill "$(cat .app.pid)" || true
           fi
 
-      - name: Upload API report
-        uses: actions/upload-artifact@v4
+      - name: Upload API reports
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: zap-api-report
-          path: zap-api-report.html
+          path: |
+            report_html.html
+            report_md.md
+            report_json.json
+            zap-rules.tsv
+          if-no-files-found: ignore
