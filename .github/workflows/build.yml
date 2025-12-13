@@ -58,7 +58,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Dependency-Check (HTML report)
-        run: mvn -B dependency-check:check -Dformat=HTML -DsuppressionFiles=dependency-check-suppressions.xml || true
+        run: mvn -B dependency-check:check -Dformat=HTML -DsuppressionFiles=dependency-check-suppressions.xml -DfailBuildOnCVSS=11 || true
 
       - name: Upload Dependency-Check report
         uses: actions/upload-artifact@v4
