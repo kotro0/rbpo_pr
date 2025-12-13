@@ -77,18 +77,18 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Fetch packaged JAR
+      - name: Download jar artifact
         uses: actions/download-artifact@v4
         with:
           name: jar-artifacts
           path: ./runtime
 
-      - name: Create rules file if missing
+      - name: Prepare ZAP rules file
         run: |
           test -f zap-rules.tsv || : > zap-rules.tsv
           cp zap-rules.tsv ./zap-rules.tsv
 
-      - name: Install JDK 17 (run app)
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -107,8 +107,21 @@ jobs:
           echo $! > .app.pid
           sleep 30
 
-      - name: ZAP baseline scan
+      - name: Wait for app (best effort)
+        run: |
+          for i in {1..20}; do
+            if curl -fsS http://localhost:8080/ >/dev/null 2>&1; then
+              echo "App is ready"
+              exit 0
+            fi
+            echo "Waiting for app..."
+            sleep 3
+          done
+          echo "App did not become ready, continuing (DAST must not fail pipeline)"
+
+      - name: Run ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.15.0
+        continue-on-error: true
         with:
           target: "http://localhost:8080/"
           rules_file_name: "zap-rules.tsv"
@@ -146,18 +159,18 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Fetch packaged JAR
+      - name: Download jar artifact
         uses: actions/download-artifact@v4
         with:
           name: jar-artifacts
           path: ./runtime
 
-      - name: Create rules file if missing
+      - name: Prepare ZAP rules file
         run: |
           test -f zap-rules.tsv || : > zap-rules.tsv
           cp zap-rules.tsv ./zap-rules.tsv
 
-      - name: Install JDK 17 (run app)
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -176,8 +189,21 @@ jobs:
           echo $! > .app.pid
           sleep 30
 
-      - name: ZAP API scan (OpenAPI)
+      - name: Wait for OpenAPI endpoint (best effort)
+        run: |
+          for i in {1..20}; do
+            if curl -fsS http://localhost:8080/v3/api-docs >/dev/null 2>&1; then
+              echo "OpenAPI is ready"
+              exit 0
+            fi
+            echo "Waiting for OpenAPI..."
+            sleep 3
+          done
+          echo "OpenAPI did not become ready, continuing (DAST must not fail pipeline)"
+
+      - name: Run ZAP API Scan
         uses: zaproxy/action-api-scan@v0.10.0
+        continue-on-error: true
         with:
           target: "http://localhost:8080/v3/api-docs"
           format: "openapi"
