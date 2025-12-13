@@ -102,7 +102,7 @@ jobs:
         run: |
           for i in {1..10}; do
             if curl -fsS http://localhost:8080/ >/dev/null 2>&1; then
-              echo "App is up";
+              echo "App is up"
               exit 0
             fi
             sleep 3
@@ -115,18 +115,30 @@ jobs:
         with:
           target: http://localhost:8080
           rules_file_name: zap-rules.tsv
-          cmd_options: "-r zap-baseline-report.html"
+          # action сам создаёт report_html.html; мы делаем отдельный "человеческий" отчёт своим шагом ниже
+          cmd_options: ""
+
+      - name: Ensure baseline report exists (fallback)
+        if: always()
+        run: |
+          if [ -f report_html.html ]; then
+            cp report_html.html zap-baseline-report.html
+          else
+            cat > zap-baseline-report.html <<'EOF'
+            <html><body>
+            <h2>OWASP ZAP Baseline Report</h2>
+            <p>ZAP did not generate the report (scan failed or target was unreachable).</p>
+            <p>Please check workflow logs for details.</p>
+            </body></html>
+            EOF
+          fi
 
       - name: Upload baseline report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: zap-baseline-report
-          path: |
-            zap-baseline-report.html
-            report_html.html
-            report_json.json
-            report_md.md
+          path: zap-baseline-report.html
 
   dast-api:
     name: DAST API Scan (OWASP ZAP)
@@ -160,7 +172,7 @@ jobs:
         run: |
           for i in {1..10}; do
             if curl -fsS http://localhost:8080/v3/api-docs >/dev/null 2>&1; then
-              echo "OpenAPI is up";
+              echo "OpenAPI is up"
               exit 0
             fi
             sleep 3
@@ -173,15 +185,26 @@ jobs:
         with:
           target: http://localhost:8080/v3/api-docs
           format: openapi
-          cmd_options: "-r zap-api-report.html"
+          cmd_options: ""
+
+      - name: Ensure API report exists (fallback)
+        if: always()
+        run: |
+          if [ -f report_html.html ]; then
+            cp report_html.html zap-api-report.html
+          else
+            cat > zap-api-report.html <<'EOF'
+            <html><body>
+            <h2>OWASP ZAP API Report</h2>
+            <p>ZAP did not generate the report (scan failed or OpenAPI was unreachable).</p>
+            <p>Please check workflow logs for details.</p>
+            </body></html>
+            EOF
+          fi
 
       - name: Upload API report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: zap-api-report
-          path: |
-            zap-api-report.html
-            report_html.html
-            report_json.json
-            report_md.md
+          path: zap-api-report.html
