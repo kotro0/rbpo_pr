@@ -10,11 +10,10 @@
 </form>
 <p th:if="${error}" th:text="${error}"></p>
 <hr/>
-<h4>Регистрация (демо A04: можно указать роль)</h4>
+<h4>Регистрация</h4>
 <form method="post" action="/register">
     <input name="username" placeholder="username"/>
     <input name="password" placeholder="password"/>
-    <input name="role" placeholder="role (STUDENT/TEACHER)"/>
     <button type="submit">Зарегистрироваться</button>
 </form>
 </body>

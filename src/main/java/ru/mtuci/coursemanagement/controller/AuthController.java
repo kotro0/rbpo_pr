@@ -56,10 +56,10 @@ public class AuthController {
 
     @PostMapping("/register")
     public String register(@RequestParam String username,
-                           @RequestParam String password,
-                           @RequestParam(required = false, defaultValue = "STUDENT") String role) {
+                           @RequestParam String password) {
         String hashedPassword = passwordEncoder.encode(password);
-        users.save(new User(null, username, hashedPassword, role));
+        // Всегда назначаем роль STUDENT для предотвращения role escalation
+        users.save(new User(null, username, hashedPassword, "STUDENT"));
         return "redirect:/login";
     }
 }
