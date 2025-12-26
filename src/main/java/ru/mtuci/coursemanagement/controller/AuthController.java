@@ -29,9 +29,9 @@ public class AuthController {
 
     @PostMapping("/login")
     public String doLogin(@RequestParam String username,
-                          @RequestParam String password,
-                          HttpServletRequest req,
-                          Model model) {
+            @RequestParam String password,
+            HttpServletRequest req,
+            Model model) {
         Optional<User> opt = users.findByUsername(username);
         if (opt.isPresent()) {
             User u = opt.get();
@@ -50,13 +50,14 @@ public class AuthController {
     @GetMapping("/logout")
     public String logout(HttpServletRequest req) {
         HttpSession s = req.getSession(false);
-        if (s != null) s.invalidate();
+        if (s != null)
+            s.invalidate();
         return "redirect:/login";
     }
 
     @PostMapping("/register")
     public String register(@RequestParam String username,
-                           @RequestParam String password) {
+            @RequestParam String password) {
         String hashedPassword = passwordEncoder.encode(password);
         // Всегда назначаем роль STUDENT для предотвращения role escalation
         users.save(new User(null, username, hashedPassword, "STUDENT"));
