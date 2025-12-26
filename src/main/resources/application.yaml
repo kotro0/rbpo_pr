@@ -24,6 +24,3 @@ management:
 server:
   error:
     include-stacktrace: ALWAYS
-app:
-  plugin:
-    url:
