@@ -1,11 +1,4 @@
 -- Инициализация демо-данных
--- Пользователи (пароли хешированы BCrypt, оригинальный пароль: "password")
-INSERT INTO USERS (id, username, password, role)
-VALUES (1, 'teacher', '$2a$10$N9qo8uLOickgx2ZMRZoMye1Qrm3/5AQy7iBnXe.qWBKs9zXlOJZ2i', 'TEACHER');
-INSERT INTO USERS (id, username, password, role)
-VALUES (2, 'student', '$2a$10$N9qo8uLOickgx2ZMRZoMye1Qrm3/5AQy7iBnXe.qWBKs9zXlOJZ2i', 'STUDENT');
-ALTER TABLE USERS ALTER COLUMN ID RESTART WITH 3;
-
 -- Студенты
 INSERT INTO STUDENTS (id, name, email, user_id)
 VALUES (1, 'Alice', 'alice@example.com', 2),
