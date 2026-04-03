@@ -46,3 +46,23 @@ jobs:
         if: always()
         with:
           sarif_file: semgrep.sarif
+
+  dependency-check-sca:
+    name: OWASP Dependency-Check (HTML)
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: maven:3.9.9-eclipse-temurin-17
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Dependency-Check (HTML report)
+        run: mvn -B dependency-check:check -Dformat=HTML -DsuppressionFiles=dependency-check-suppressions.xml -DfailBuildOnCVSS=11 || true
+
+      - name: Upload Dependency-Check report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.html
