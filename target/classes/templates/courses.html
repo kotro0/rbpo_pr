@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h1>Courses</h1>
+<ul>
+    <th:block th:each="c : ${courses}">
+        <li th:text="${c.name}"></li>
+    </th:block>
+</ul>
+</body>
+</html>
