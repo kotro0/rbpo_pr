@@ -1,0 +1,29 @@
+name: build
+
+# on:
+#   pull_request:
+#     branches:
+#       - main
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: maven:3.9.9-eclipse-temurin-17
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build, test, package
+        run: mvn -B test package
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-artifacts
+          path: ./target/*.jar
